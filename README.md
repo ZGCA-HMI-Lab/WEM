@@ -51,29 +51,37 @@ huggingface-cli download Qwen/Qwen3-VL-2B-Instruct \
 
 ## 📦 Data Preparation
 
-### BEHAVIOR-1K
+Download HTEWorld from Hugging Face:
 
-Download the BEHAVIOR-1K raw videos (tasks 0–8, 10) and convert them to the training format:
+```bash
+huggingface-cli download Zoorao/HTEWorld \
+    --repo-type dataset \
+    --local-dir <HTEWORLD_ROOT>
+```
+
+The dataset repository contains two splits:
+
+```
+<HTEWORLD_ROOT>/
+├── train/   # WEM training annotations
+└── eval/    # benchmark inputs with full ground-truth videos
+```
+
+The `train/` split provides the annotations used by WEM, but it does not include the raw BEHAVIOR-1K videos. Download the corresponding BEHAVIOR-1K videos separately, then preprocess them into the training layout:
 
 ```bash
 python tools/prepare_b1k.py \
-    --root_dir /data/b1k_raw \
-    --output_dir /data/b1k \
+    --root_dir <BEHAVIOR_1K_ROOT> \
+    --output_dir <DATA_ROOT>/train \
     --task_name all
 ```
 
-Download the training annotations (captions and segmentation masks, excluding the first 5 episodes of each task) from HuggingFace:
+After preprocessing, copy the annotations from `<HTEWORLD_ROOT>/train` into the processed directory. Each training clip should contain its video, caption, and mask.
 
-```bash
-huggingface-cli download <REPO_PLACEHOLDER>/wem-b1k-annotations \
-    --repo-type dataset \
-    --local-dir /data/b1k
-```
-
-The final dataset should be organized as:
+Expected training layout:
 
 ```
-/data/b1k/
+<DATA_ROOT>/train/
 ├── task-0000/
 │   ├── episode_000/
 │   │   ├── first_frame.jpg
@@ -81,70 +89,43 @@ The final dataset should be organized as:
 │   │   │   ├── video.mp4
 │   │   │   ├── caption.txt
 │   │   │   └── mask.npz
-│   │   ├── clip_1/
-│   │   │   └── ...
 │   │   └── ...
 │   └── ...
 └── ...
 ```
 
-### Preprocessing
+Pre-compute the cached tensors used during training:
 
-After preprocessing, each episode and clip directory will contain the following cached tensors:
-
-```
-/data/b1k/
-├── task-0000/
-│   ├── episode_000/
-│   │   ├── first_frame.jpg
-│   │   ├── first_frame_latents.pt     # VAE latent of first_frame.jpg
-│   │   ├── first_frame_embeds.pt      # Qwen3-VL visual embedding of first_frame.jpg
-│   │   ├── clip_0/
-│   │   │   ├── video.mp4
-│   │   │   ├── caption.txt
-│   │   │   ├── mask.npz
-│   │   │   ├── latents.pt             # VAE latent of video.mp4
-│   │   │   ├── text_embeds.pt         # T5 embedding of caption.txt
-│   │   │   ├── text_embeds_null.pt    # T5 embedding of empty string
-│   │   │   ├── visual_embeds.pt       # Qwen3-VL visual embedding of video.mp4
-│   │   │   └── text_ids.pt            # Qwen3-VL token IDs of caption.txt
-│   │   └── ...
-│   └── ...
-└── ...
-```
-
-Pre-compute the cached tensors required for training. Run all four steps with `--data_root` pointing to your dataset. Each script uses all available GPUs by default (override with `--num_gpus`).
-
-**VAE latents** — encode `first_frame.jpg` (per episode) and `video.mp4` (per clip):
+**VAE latents**
 
 ```bash
 python tools/precompute_latents.py \
-    --data_root /data/b1k \
+    --data_root <DATA_ROOT>/train \
     --vae_pth checkpoints/Wan2.2-TI2V-5B/Wan2.2_VAE.pth
 ```
 
-**T5 text embeddings** — encode `caption.txt` → `text_embeds.pt` + `text_embeds_null.pt`:
+**T5 text embeddings**
 
 ```bash
 python tools/precompute_text_embeds.py \
-    --data_root /data/b1k \
+    --data_root <DATA_ROOT>/train \
     --t5_pth checkpoints/Wan2.2-TI2V-5B/models_t5_umt5-xxl-enc-bf16.pth \
     --tokenizer_path checkpoints/Wan2.2-TI2V-5B/google/umt5-xxl
 ```
 
-**Qwen3-VL visual embeddings** — encode `video.mp4` and `first_frame.jpg` via the visual encoder:
+**Qwen3-VL visual embeddings**
 
 ```bash
 python tools/precompute_visual_embeds.py \
-    --data_root /data/b1k \
+    --data_root <DATA_ROOT>/train \
     --model_path checkpoints/Qwen3-VL-2B-Instruct
 ```
 
-**Qwen3-VL token IDs** — tokenize `caption.txt` → `text_ids.pt`:
+**Qwen3-VL token IDs**
 
 ```bash
 python tools/precompute_text_ids.py \
-    --data_root /data/b1k \
+    --data_root <DATA_ROOT>/train \
     --model_path checkpoints/Qwen3-VL-2B-Instruct
 ```
 
@@ -162,7 +143,7 @@ This repository recommends launching training directly with `train.py`. The shel
 torchrun --standalone --nnodes=1 --nproc_per_node=<NUM_GPUS> train.py \
     --stage 1 \
     --dataset b1k \
-    --data_root <DATA_ROOT> \
+    --data_root <DATA_ROOT>/train \
     --ckpt_path <WAN2.2_CHECKPOINT_DIR> \
     --output_dir <OUTPUT_DIR>
 ```
@@ -173,7 +154,7 @@ torchrun --standalone --nnodes=1 --nproc_per_node=<NUM_GPUS> train.py \
 torchrun --standalone --nnodes=1 --nproc_per_node=<NUM_GPUS> train.py \
     --stage 2 \
     --dataset b1k \
-    --data_root <DATA_ROOT> \
+    --data_root <DATA_ROOT>/train \
     --ckpt_path <WAN2.2_CHECKPOINT_DIR> \
     --decoder_ckpt_path <STAGE1_CHECKPOINT_DIR> \
     --qwen_model_path <QWEN3_VL_CHECKPOINT_DIR> \
@@ -189,7 +170,14 @@ Additional hyperparameters such as learning rate, batch size, precision, FSDP mo
 
 ### Video Generation
 
-Use `generate.py` for both single-demo generation and benchmark batch generation. A single generation sample consists of one first-frame image and a sequence of text instructions:
+First download the released WEM checkpoint from Hugging Face:
+
+```bash
+huggingface-cli download Zoorao/WEM \
+    --local-dir <WEM_CHECKPOINT_DIR>
+```
+
+Generate a single video from a first frame and a sequence of instructions:
 
 ```bash
 python generate.py \
@@ -201,50 +189,36 @@ python generate.py \
         "<INSTRUCTION_1>" \
         "<INSTRUCTION_2>" \
         "<INSTRUCTION_3>" \
-    --output <OUTPUT_MP4> \
-    --num_chunks 3
+    --output <OUTPUT_MP4>
 ```
 
-Additional sampling options such as denoising steps, guidance scales, FPS, random seed, and overwrite behavior can be passed directly to `generate.py`. `--num_chunks` should match the number of instruction prompts. If they differ, `generate.py` pads or truncates the instruction list to exactly `--num_chunks`.
+By default, all provided instructions are used. Backbone checkpoints can be configured with `--wan_ckpt_dir` and `--qwen_ckpt_dir`.
 
 ### HTEWorld Benchmark
 
 HTEWorld evaluation reports six formal metrics: RCBD, LPSA, CISR, PMPA, CPDM, and FPHSC.
 
-**1. Download the benchmark data**
-
-Download the HTEWorld test set from HuggingFace:
-
-```bash
-huggingface-cli download <REPO_PLACEHOLDER>/hteworld \
-    --repo-type dataset \
-    --local-dir <HTEWORLD_ROOT>
-```
-
-The benchmark split is organized as one directory per task:
+The `eval/` split in `Zoorao/HTEWorld` contains all files required for benchmark evaluation, including the complete ground-truth video for each task:
 
 ```
 <HTEWORLD_ROOT>/eval/
 ├── task_000/
 │   ├── first_frame.jpg
+│   ├── video.mp4
 │   ├── prompts.txt
 │   ├── prompt_nav_manip.txt
-│   ├── 0.mp4
-│   ├── 1.mp4
 │   └── ...
 ├── task_001/
 │   └── ...
 └── ...
 ```
 
-`prompts.txt` contains one instruction per line. `prompt_nav_manip.txt` contains the corresponding phase label for each instruction. The numbered MP4 files are ground-truth chunks aligned with the prompt order.
+`prompts.txt` contains the generation instructions. `prompt_nav_manip.txt` contains the navigation/manipulation phase labels used by the evaluator.
 
-**2. Generate videos for the benchmark tasks**
-
-Run `generate.py` directly on the benchmark root. The generator reads each task's `first_frame.jpg` and `prompts.txt`, then writes one full generated trajectory per task:
+Generate benchmark predictions:
 
 ```bash
-torchrun --standalone --nproc_per_node=1 generate.py \
+python generate.py \
     --ckpt_dir <WEM_CHECKPOINT_DIR> \
     --wan_ckpt_dir <WAN2.2_CHECKPOINT_DIR> \
     --qwen_ckpt_dir <QWEN3_VL_CHECKPOINT_DIR> \
@@ -252,9 +226,7 @@ torchrun --standalone --nproc_per_node=1 generate.py \
     --output_dir <PREDICTION_ROOT>
 ```
 
-**3. Organize generated videos**
-
-The evaluator expects one MP4 per sample, with numeric file stems under each task directory:
+The command saves predictions as:
 
 ```
 <PREDICTION_ROOT>/
@@ -265,9 +237,7 @@ The evaluator expects one MP4 per sample, with numeric file stems under each tas
 └── ...
 ```
 
-**4. Compute the six HTEWorld metrics**
-
-Run the evaluator on the generated videos:
+Compute the six HTEWorld metrics:
 
 ```bash
 python eval/evaluate.py \
@@ -305,6 +275,6 @@ We thank the authors of [Wan](https://github.com/Wan-Video/Wan2.1) for the video
   title   = {World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks},
   author  = {Author1 and Author2 and Author3},
   journal = {arXiv preprint arXiv:XXXX.XXXXX},
-  year    = {2025}
+  year    = {2026}
 }
 ```

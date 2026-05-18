@@ -1,15 +1,9 @@
+from __future__ import annotations
+
 import argparse
 import json
 import os
 from pathlib import Path
-
-import torch
-import torch.distributed as dist
-from PIL import Image
-
-from third_party.wan.utils.utils import save_video
-from wem.configs.wem import wem_cfg
-from wem.models.generator import WEMGenerator
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,20 +41,29 @@ def parse_args() -> argparse.Namespace:
 
 
 def init_distributed() -> tuple[int, int]:
+    import torch
+    import torch.distributed as dist
+
     if "RANK" not in os.environ:
         return 0, 1
     dist.init_process_group(backend="nccl")
     rank = dist.get_rank()
-    torch.cuda.set_device(rank)
+    num_cuda_devices = torch.cuda.device_count()
+    if num_cuda_devices == 0:
+        raise RuntimeError("CUDA GPU is required for generation.")
+    torch.cuda.set_device(rank % num_cuda_devices)
     return rank, dist.get_world_size()
 
 
-def apply_config_overrides(args: argparse.Namespace) -> None:
+def apply_config_overrides(args: argparse.Namespace):
+    from wem.configs.wem import wem_cfg
+
     wan = args.wan_ckpt_dir
     wem_cfg.t5_checkpoint = os.path.join(wan, "models_t5_umt5-xxl-enc-bf16.pth")
     wem_cfg.t5_tokenizer = os.path.join(wan, "google/umt5-xxl")
     wem_cfg.vae_checkpoint = os.path.join(wan, "Wan2.2_VAE.pth")
     wem_cfg.world_model.model_name = args.qwen_ckpt_dir
+    return wem_cfg
 
 
 def fit_prompts(instructions: list[str], num_chunks: int | None) -> list[str]:
@@ -97,13 +100,15 @@ def load_benchmark_tasks(benchmark_root: Path) -> list[dict]:
 
 
 def run_one(
-    generator: WEMGenerator,
-    image: Image.Image,
+    generator,
+    image,
     prompts: list[str],
     out_path: Path,
     args: argparse.Namespace,
     rank: int,
 ) -> None:
+    from third_party.wan.utils.utils import save_video
+
     if out_path.exists() and not args.overwrite:
         print(f"[rank {rank}] skip {out_path.name} (exists)")
         return
@@ -133,10 +138,19 @@ def run_one(
 
 def main() -> None:
     args = parse_args()
-    rank, world_size = init_distributed()
-    device_id = rank % torch.cuda.device_count()
 
-    apply_config_overrides(args)
+    import torch
+    import torch.distributed as dist
+    from PIL import Image
+    from wem.models.generator import WEMGenerator
+
+    rank, world_size = init_distributed()
+    num_cuda_devices = torch.cuda.device_count()
+    if num_cuda_devices == 0:
+        raise RuntimeError("CUDA GPU is required for generation.")
+    device_id = rank % num_cuda_devices
+
+    wem_cfg = apply_config_overrides(args)
 
     generator = WEMGenerator(
         config=wem_cfg,
