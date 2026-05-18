@@ -264,7 +264,7 @@ This project is licensed under the [Creative Commons Attribution-NonCommercial 4
 
 ## 🙏 Acknowledgements
 
-We thank the authors of [Wan](https://github.com/Wan-Video/Wan2.1) for the video generation backbone and [PAN](https://panworld.ai/) for foundational insights into general long-horizon world simulation.
+We thank the authors of [Wan](https://github.com/Wan-Video/Wan2.1) for the video generation backbone.
 
 ---
 
