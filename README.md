@@ -271,7 +271,7 @@ We thank the authors of [Wan](https://github.com/Wan-Video/Wan2.1) for the video
 ## 📖 Citation
 
 ```bibtex
-@article{wem2025,
+@article{wem2026,
   title   = {World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks},
   author  = {Author1 and Author2 and Author3},
   journal = {arXiv preprint arXiv:XXXX.XXXXX},
