@@ -1,0 +1,49 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local data, checkpoints, and training outputs
+data/
+outputs/
+results/
+checkpoints/
+wandb/
+logs/
+logs.txt
+
+# Local experiment shell wrappers
+scripts/generate.sh
+scripts/run_b1k.sh
+scripts/train_.sh
+scripts/train_b1k.sh
+scripts/train_robotwin.sh
+
+# Large generated artifacts and model files
+*.mp4
+*.avi
+*.mov
+*.webm
+*.gif
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.npy
+*.bin
+*.onnx
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+*.out
+*.err

@@ -1,0 +1,30 @@
+device: cuda
+verbose: true
+checkpoints:
+  clip_model: ""      # empty -> OpenAI CLIP ViT-B/32 auto-download
+  raft_model: ""      # empty -> torchvision RAFT large auto-download
+  musiq_model: ""     # empty -> pyiqa MUSIQ auto-download
+  alexnet_model: ""   # auto-downloaded by torchmetrics if empty
+segmentation:
+  generated_initial_frames: 1
+  generated_chunk_frames: 37
+metrics:
+  neutral_reference_prompt: a static scene with no motion
+  clip_max_frames: 8
+  musiq_max_frames: 16
+  rcbd_lpips_scale: 0.5
+  rcbd_flow_scale_ratio: 0.05
+  lpsa_window_frames: 4
+  lpsa_max_frames: 4
+  cisr_max_frames: 8
+  cpdm_max_frames: 8
+  cpdm_temperature: 0.05
+  pmpa_max_pairs: 16
+  pmpa_profile_len: 16
+  pmpa_temperature: 1.0
+  pmpa_entropy_bins: 16
+  fphsc_window_frames: 4
+  fphsc_max_frames: 8
+  fphsc_change_top_q_percent: 20.0
+  fphsc_crop_padding_ratio: 0.10
+  match_epsilon: 0.000001

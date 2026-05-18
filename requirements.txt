@@ -1,0 +1,39 @@
+# Core deep learning
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch>=2.9,<2.10
+torchvision>=0.24,<0.25
+
+# Transformers & PEFT (for Qwen3-VL backbone and optional LoRA)
+transformers>=4.57,<4.58
+peft>=0.18,<0.19
+accelerate>=1.12,<1.13
+
+# Wan2.2 dependencies
+safetensors>=0.7,<0.8
+einops>=0.7.0
+easydict>=1.13
+diffusers>=0.36,<0.37
+
+# Data processing
+numpy>=1.26.0,<3.0
+Pillow>=10.0.0,<13.0
+opencv-python>=4.9.0,<5.0
+scipy>=1.12.0,<2.0
+av>=12.0.0,<17.0
+PyYAML>=6.0.1
+
+# Tokenizer utilities
+ftfy>=6.2.0
+
+# Data pipeline
+click>=8.1.0
+requests>=2.31.0
+tqdm>=4.66.0
+
+# Training utilities
+wandb>=0.17.0
+
+# Evaluation utilities
+torchmetrics>=1.4.0,<2.0
+pyiqa>=0.1.13,<0.2
+git+https://github.com/openai/CLIP.git

@@ -1,0 +1,310 @@
+# World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks
+
+**Zuyao Lin**<sup>1,2,3</sup>, **Jianhui Zhang**<sup>3,4</sup>, **Peidong Jia**<sup>5</sup>, **Xiaoguang Zhao**<sup>1</sup>, **Shanghang Zhang**<sup>5</sup>, **Xingyu Chen**<sup>3,✉</sup>
+
+<sup>1</sup>Institute of Automation, Chinese Academy of Sciences  
+<sup>2</sup>School of Artificial Intelligence, University of Chinese Academy of Sciences  
+<sup>3</sup>Zhongguancun Academy  
+<sup>4</sup>Shanghai Jiaotong University  
+<sup>5</sup>Peking University
+
+<sup>✉</sup>Corresponding author
+
+[![Paper](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b)](placeholder)
+[![Project Page](https://img.shields.io/badge/Project-Page-blue)](placeholder)
+[![HuggingFace Model](https://img.shields.io/badge/🤗-Model-yellow)](placeholder)
+[![HuggingFace Dataset](https://img.shields.io/badge/🤗-Dataset-yellow)](placeholder)
+
+---
+
+![Teaser](assets/teaser.png)
+
+---
+
+## Abstract
+
+World models are widely explored in embodied intelligence, yet they typically predict world and ego evolution within a single stream, entangling persistent instruction-agnostic scene regularities with robot-centric instruction-conditioned dynamics. This entanglement degrades performance in long-horizon scenarios, particularly in hybrid tasks with interleaved navigation and manipulation. We introduce **World-Ego Modeling**, a paradigm that decomposes future evolution into separate world and ego components, defined from motion-, semantic-, and intention-based perspectives. We instantiate this as the **World-Ego Model (WEM)**, coupling an implicit world-ego planner with a cascade-parallel mixture-of-experts (CP-MoE) diffusion generator. To enable rigorous evaluation, we construct **HTEWorld**, the first benchmark for long-horizon world modeling with hybrid tasks, providing about 125K video clips (4.5M+ frames) with fine-grained action annotations and 300 multi-turn trajectories (2K+ instructions). WEM achieves state-of-the-art performance on HTEWorld while remaining competitive on existing manipulation-only benchmarks.
+
+---
+
+## ⚙️ Installation
+
+```bash
+conda create -n wem python=3.10 -y
+conda activate wem
+pip install -r requirements.txt
+```
+
+Download the required model checkpoints:
+
+```bash
+# Wan2.2-TI2V-5B (video decoder backbone)
+huggingface-cli download Wan-AI/Wan2.2-TI2V-5B \
+    --local-dir checkpoints/Wan2.2-TI2V-5B
+
+# Qwen3-VL-2B-Instruct (world model backbone)
+huggingface-cli download Qwen/Qwen3-VL-2B-Instruct \
+    --local-dir checkpoints/Qwen3-VL-2B-Instruct
+```
+
+---
+
+## 📦 Data Preparation
+
+### BEHAVIOR-1K
+
+Download the BEHAVIOR-1K raw videos (tasks 0–8, 10) and convert them to the training format:
+
+```bash
+python tools/prepare_b1k.py \
+    --root_dir /data/b1k_raw \
+    --output_dir /data/b1k \
+    --task_name all
+```
+
+Download the training annotations (captions and segmentation masks, excluding the first 5 episodes of each task) from HuggingFace:
+
+```bash
+huggingface-cli download <REPO_PLACEHOLDER>/wem-b1k-annotations \
+    --repo-type dataset \
+    --local-dir /data/b1k
+```
+
+The final dataset should be organized as:
+
+```
+/data/b1k/
+├── task-0000/
+│   ├── episode_000/
+│   │   ├── first_frame.jpg
+│   │   ├── clip_0/
+│   │   │   ├── video.mp4
+│   │   │   ├── caption.txt
+│   │   │   └── mask.npz
+│   │   ├── clip_1/
+│   │   │   └── ...
+│   │   └── ...
+│   └── ...
+└── ...
+```
+
+### Preprocessing
+
+After preprocessing, each episode and clip directory will contain the following cached tensors:
+
+```
+/data/b1k/
+├── task-0000/
+│   ├── episode_000/
+│   │   ├── first_frame.jpg
+│   │   ├── first_frame_latents.pt     # VAE latent of first_frame.jpg
+│   │   ├── first_frame_embeds.pt      # Qwen3-VL visual embedding of first_frame.jpg
+│   │   ├── clip_0/
+│   │   │   ├── video.mp4
+│   │   │   ├── caption.txt
+│   │   │   ├── mask.npz
+│   │   │   ├── latents.pt             # VAE latent of video.mp4
+│   │   │   ├── text_embeds.pt         # T5 embedding of caption.txt
+│   │   │   ├── text_embeds_null.pt    # T5 embedding of empty string
+│   │   │   ├── visual_embeds.pt       # Qwen3-VL visual embedding of video.mp4
+│   │   │   └── text_ids.pt            # Qwen3-VL token IDs of caption.txt
+│   │   └── ...
+│   └── ...
+└── ...
+```
+
+Pre-compute the cached tensors required for training. Run all four steps with `--data_root` pointing to your dataset. Each script uses all available GPUs by default (override with `--num_gpus`).
+
+**VAE latents** — encode `first_frame.jpg` (per episode) and `video.mp4` (per clip):
+
+```bash
+python tools/precompute_latents.py \
+    --data_root /data/b1k \
+    --vae_pth checkpoints/Wan2.2-TI2V-5B/Wan2.2_VAE.pth
+```
+
+**T5 text embeddings** — encode `caption.txt` → `text_embeds.pt` + `text_embeds_null.pt`:
+
+```bash
+python tools/precompute_text_embeds.py \
+    --data_root /data/b1k \
+    --t5_pth checkpoints/Wan2.2-TI2V-5B/models_t5_umt5-xxl-enc-bf16.pth \
+    --tokenizer_path checkpoints/Wan2.2-TI2V-5B/google/umt5-xxl
+```
+
+**Qwen3-VL visual embeddings** — encode `video.mp4` and `first_frame.jpg` via the visual encoder:
+
+```bash
+python tools/precompute_visual_embeds.py \
+    --data_root /data/b1k \
+    --model_path checkpoints/Qwen3-VL-2B-Instruct
+```
+
+**Qwen3-VL token IDs** — tokenize `caption.txt` → `text_ids.pt`:
+
+```bash
+python tools/precompute_text_ids.py \
+    --data_root /data/b1k \
+    --model_path checkpoints/Qwen3-VL-2B-Instruct
+```
+
+---
+
+## 🏗️ Training
+
+Training follows two stages. Stage 1 pre-trains the video decoder; Stage 2 adds the world model and trains the full WEM.
+
+This repository recommends launching training directly with `train.py`. The shell scripts under `scripts/` are only legacy wrappers and may hide important arguments.
+
+**Stage 1 — decoder pre-training:**
+
+```bash
+torchrun --standalone --nnodes=1 --nproc_per_node=<NUM_GPUS> train.py \
+    --stage 1 \
+    --dataset b1k \
+    --data_root <DATA_ROOT> \
+    --ckpt_path <WAN2.2_CHECKPOINT_DIR> \
+    --output_dir <OUTPUT_DIR>
+```
+
+**Stage 2 — full WEM training:**
+
+```bash
+torchrun --standalone --nnodes=1 --nproc_per_node=<NUM_GPUS> train.py \
+    --stage 2 \
+    --dataset b1k \
+    --data_root <DATA_ROOT> \
+    --ckpt_path <WAN2.2_CHECKPOINT_DIR> \
+    --decoder_ckpt_path <STAGE1_CHECKPOINT_DIR> \
+    --qwen_model_path <QWEN3_VL_CHECKPOINT_DIR> \
+    --finetune \
+    --output_dir <OUTPUT_DIR>
+```
+
+Additional hyperparameters such as learning rate, batch size, precision, FSDP mode, and checkpoint interval can be passed directly to `train.py`. Run `python train.py --help` for the full argument list. With `--fsdp_sharding hybrid`, launch one process per visible GPU on the node.
+
+---
+
+## 📊 Evaluation
+
+### Video Generation
+
+Use `generate.py` for both single-demo generation and benchmark batch generation. A single generation sample consists of one first-frame image and a sequence of text instructions:
+
+```bash
+python generate.py \
+    --ckpt_dir <WEM_CHECKPOINT_DIR> \
+    --wan_ckpt_dir <WAN2.2_CHECKPOINT_DIR> \
+    --qwen_ckpt_dir <QWEN3_VL_CHECKPOINT_DIR> \
+    --image <FIRST_FRAME_IMAGE> \
+    --instructions \
+        "<INSTRUCTION_1>" \
+        "<INSTRUCTION_2>" \
+        "<INSTRUCTION_3>" \
+    --output <OUTPUT_MP4> \
+    --num_chunks 3
+```
+
+Additional sampling options such as denoising steps, guidance scales, FPS, random seed, and overwrite behavior can be passed directly to `generate.py`. `--num_chunks` should match the number of instruction prompts. If they differ, `generate.py` pads or truncates the instruction list to exactly `--num_chunks`.
+
+### HTEWorld Benchmark
+
+HTEWorld evaluation reports six formal metrics: RCBD, LPSA, CISR, PMPA, CPDM, and FPHSC.
+
+**1. Download the benchmark data**
+
+Download the HTEWorld test set from HuggingFace:
+
+```bash
+huggingface-cli download <REPO_PLACEHOLDER>/hteworld \
+    --repo-type dataset \
+    --local-dir <HTEWORLD_ROOT>
+```
+
+The benchmark split is organized as one directory per task:
+
+```
+<HTEWORLD_ROOT>/eval/
+├── task_000/
+│   ├── first_frame.jpg
+│   ├── prompts.txt
+│   ├── prompt_nav_manip.txt
+│   ├── 0.mp4
+│   ├── 1.mp4
+│   └── ...
+├── task_001/
+│   └── ...
+└── ...
+```
+
+`prompts.txt` contains one instruction per line. `prompt_nav_manip.txt` contains the corresponding phase label for each instruction. The numbered MP4 files are ground-truth chunks aligned with the prompt order.
+
+**2. Generate videos for the benchmark tasks**
+
+Run `generate.py` directly on the benchmark root. The generator reads each task's `first_frame.jpg` and `prompts.txt`, then writes one full generated trajectory per task:
+
+```bash
+torchrun --standalone --nproc_per_node=1 generate.py \
+    --ckpt_dir <WEM_CHECKPOINT_DIR> \
+    --wan_ckpt_dir <WAN2.2_CHECKPOINT_DIR> \
+    --qwen_ckpt_dir <QWEN3_VL_CHECKPOINT_DIR> \
+    --benchmark_root <HTEWORLD_ROOT>/eval \
+    --output_dir <PREDICTION_ROOT>
+```
+
+**3. Organize generated videos**
+
+The evaluator expects one MP4 per sample, with numeric file stems under each task directory:
+
+```
+<PREDICTION_ROOT>/
+├── task_000/
+│   └── 0.mp4
+├── task_001/
+│   └── 0.mp4
+└── ...
+```
+
+**4. Compute the six HTEWorld metrics**
+
+Run the evaluator on the generated videos:
+
+```bash
+python eval/evaluate.py \
+    --output-root <PREDICTION_ROOT> \
+    --benchmark-root <HTEWORLD_ROOT>/eval \
+    --save-dir <EVAL_SAVE_DIR> \
+    --metrics formal \
+    --model-name <MODEL_NAME>
+```
+
+Results are saved under:
+
+```
+<EVAL_SAVE_DIR>/<MODEL_NAME>/
+```
+
+---
+
+## 📜 License
+
+This project is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](LICENSE).
+
+---
+
+## 🙏 Acknowledgements
+
+We thank the authors of [Wan](https://github.com/Wan-Video/Wan2.1) for the video generation backbone and [PAN](https://panworld.ai/) for foundational insights into general long-horizon world simulation.
+
+---
+
+## 📖 Citation
+
+```bibtex
+@article{wem2025,
+  title   = {World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks},
+  author  = {Author1 and Author2 and Author3},
+  journal = {arXiv preprint arXiv:XXXX.XXXXX},
+  year    = {2025}
+}
+```
