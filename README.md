@@ -11,9 +11,9 @@
 <sup>✉</sup>Corresponding author
 
 [![Paper](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b)](placeholder)
-[![Project Page](https://img.shields.io/badge/Project-Page-blue)](placeholder)
-[![HuggingFace Model](https://img.shields.io/badge/🤗-Model-yellow)](placeholder)
-[![HuggingFace Dataset](https://img.shields.io/badge/🤗-Dataset-yellow)](placeholder)
+[![Project Page](https://img.shields.io/badge/Project-Page-blue)](https://lllinzy.github.io/wem/)
+[![HuggingFace Model](https://img.shields.io/badge/🤗-Model-yellow)](https://huggingface.co/Zoorao/WEM)
+[![HuggingFace Dataset](https://img.shields.io/badge/🤗-Dataset-yellow)](https://huggingface.co/datasets/Zoorao/HTEWorld)
 
 ---
 
