@@ -11,7 +11,7 @@
 <sup>✉</sup>Corresponding author
 
 [![Paper](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b)](placeholder)
-[![Project Page](https://img.shields.io/badge/Project-Page-blue)](https://lllinzy.github.io/wem/)
+[![Project Page](https://img.shields.io/badge/Project-Page-blue)](https://zgca-hmi-lab.github.io/WEM/)
 [![HuggingFace Model](https://img.shields.io/badge/🤗-Model-yellow)](https://huggingface.co/Zoorao/WEM)
 [![HuggingFace Dataset](https://img.shields.io/badge/🤗-Dataset-yellow)](https://huggingface.co/datasets/Zoorao/HTEWorld)
 
