@@ -63,11 +63,21 @@ The dataset repository contains two splits:
 
 ```
 <HTEWORLD_ROOT>/
-├── train/   # WEM training annotations
-└── eval/    # benchmark inputs with full ground-truth videos
+├── train/
+│   ├── task-0000.tar.gz
+│   ├── task-0001.tar.gz
+│   ├── ...
+│   └── task-0010.tar.gz
+└── eval/
+    ├── task_001/
+    │   ├── first_frame.jpg
+    │   ├── video.mp4
+    │   ├── prompts.txt
+    │   └── prompt_nav_manip.txt
+    └── ...
 ```
 
-The `train/` split provides the annotations used by WEM, but it does not include the raw BEHAVIOR-1K videos. Download the corresponding BEHAVIOR-1K videos separately, then preprocess them into the training layout:
+The `train/` split contains WEM training annotations only. It does not include raw BEHAVIOR-1K training videos. Download the corresponding BEHAVIOR-1K videos separately, then preprocess them into the WEM training layout:
 
 ```bash
 python tools/prepare_b1k.py \
@@ -76,7 +86,19 @@ python tools/prepare_b1k.py \
     --task_name all
 ```
 
-After preprocessing, copy the annotations from `<HTEWORLD_ROOT>/train` into the processed directory. Each training clip should contain its video, caption, and mask.
+Extract the released annotation archives and merge them into the processed video directory:
+
+```bash
+mkdir -p <ANNOTATION_ROOT>
+
+for archive in <HTEWORLD_ROOT>/train/task-*.tar.gz; do
+    tar -xzf "$archive" -C <ANNOTATION_ROOT>
+done
+
+rsync -a <ANNOTATION_ROOT>/ <DATA_ROOT>/train/
+```
+
+The released annotations cover `task-0000` to `task-0008` and `task-0010`. The first five episodes of each task are excluded from training, and empty clips without complete annotations are omitted.
 
 Expected training layout:
 
@@ -93,6 +115,8 @@ Expected training layout:
 │   └── ...
 └── ...
 ```
+
+The `eval/` split is already in the benchmark format and does not require preprocessing.
 
 Pre-compute the cached tensors used during training:
 
