@@ -3,14 +3,14 @@
 **Zuyao Lin**<sup>1,2,3</sup>, **Jianhui Zhang**<sup>3,4</sup>, **Peidong Jia**<sup>5</sup>, **Xiaoguang Zhao**<sup>1</sup>, **Shanghang Zhang**<sup>5</sup>, **Xingyu Chen**<sup>3,✉</sup>
 
 <sup>1</sup>Institute of Automation, Chinese Academy of Sciences  
-<sup>2</sup>School of Artificial Intelligence, University of Chinese Academy of Sciences  
+<sup>2</sup>University of Chinese Academy of Sciences  
 <sup>3</sup>Zhongguancun Academy  
 <sup>4</sup>Shanghai Jiaotong University  
 <sup>5</sup>Peking University
 
 <sup>✉</sup>Corresponding author
 
-[![Paper](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b)](placeholder)
+[![Paper](https://img.shields.io/badge/arXiv-2605.19957-b31b1b)](https://arxiv.org/abs/2605.19957)
 [![Project Page](https://img.shields.io/badge/Project-Page-blue)](https://zgca-hmi-lab.github.io/WEM/)
 [![HuggingFace Model](https://img.shields.io/badge/🤗-Model-yellow)](https://huggingface.co/Zoorao/WEM)
 [![HuggingFace Dataset](https://img.shields.io/badge/🤗-Dataset-yellow)](https://huggingface.co/datasets/Zoorao/HTEWorld)
@@ -288,7 +288,7 @@ This project is licensed under the [Creative Commons Attribution-NonCommercial 4
 
 ## 🙏 Acknowledgements
 
-We thank the authors of [Wan](https://github.com/Wan-Video/Wan2.1) for the video generation backbone.
+We thank the authors of [Wan2.2](https://github.com/Wan-Video/Wan2.2) for the video generation backbone.
 
 ---
 
@@ -296,9 +296,9 @@ We thank the authors of [Wan](https://github.com/Wan-Video/Wan2.1) for the video
 
 ```bibtex
 @article{wem2026,
-  title   = {World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks},
-  author  = {Author1 and Author2 and Author3},
-  journal = {arXiv preprint arXiv:XXXX.XXXXX},
-  year    = {2026}
+  title={World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks},
+  author={Lin, Zuyao and Zhang, Jianhui and Jia, Peidong and Zhao, Xiaoguang and Zhang, Shanghang and Chen, Xingyu},
+  journal={arXiv preprint arXiv:2605.19957},
+  year={2026}
 }
 ```
