@@ -13,6 +13,7 @@ results/
 checkpoints/
 wandb/
 logs/
+hf_upload_wem/
 logs.txt
 
 # Local experiment shell wrappers
