@@ -1,5 +1,6 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import gc
+import json
 import math
 import numpy as np
 import os
@@ -37,6 +38,57 @@ def _remap_legacy_branch_keys(state_dict: dict) -> dict:
         k.replace("nav_", "world_").replace("manip_", "ego_"): v
         for k, v in state_dict.items()
     }
+
+
+def _load_safetensors_checkpoint(model, checkpoint_dir, model_name, remap_fn=None) -> bool:
+    """Load either a single-file or sharded safetensors checkpoint."""
+    if not os.path.isdir(checkpoint_dir):
+        return False
+
+    safetensors_path = os.path.join(checkpoint_dir, "model.safetensors")
+    if os.path.exists(safetensors_path):
+        print(f"Loading {model_name} weights from {safetensors_path}")
+        state_dict = load_file(safetensors_path)
+        if remap_fn is not None:
+            state_dict = remap_fn(state_dict)
+        missing, unexpected = model.load_state_dict(state_dict, strict=False)
+        print(f"Missing keys: {missing}")
+        print(f"Unexpected keys: {unexpected}")
+        return True
+
+    index_path = os.path.join(checkpoint_dir, "model.safetensors.index.json")
+    if not os.path.exists(index_path):
+        return False
+
+    print(f"Loading {model_name} weights from sharded checkpoint {index_path}")
+    with open(index_path, "r", encoding="utf-8") as f:
+        index = json.load(f)
+    weight_map = index.get("weight_map")
+    if not isinstance(weight_map, dict):
+        raise ValueError(f"Invalid safetensors index: {index_path}")
+
+    model_keys = set(model.state_dict().keys())
+    loaded_keys = set()
+    unexpected_keys = set()
+    shard_names = sorted(set(weight_map.values()))
+    for i, shard_name in enumerate(shard_names, start=1):
+        shard_path = os.path.join(checkpoint_dir, shard_name)
+        if not os.path.exists(shard_path):
+            raise FileNotFoundError(f"Missing checkpoint shard: {shard_path}")
+        print(f"Loading {model_name} shard {i}/{len(shard_names)} from {shard_path}")
+        state_dict = load_file(shard_path)
+        if remap_fn is not None:
+            state_dict = remap_fn(state_dict)
+        _, unexpected = model.load_state_dict(state_dict, strict=False)
+        loaded_keys.update(state_dict.keys())
+        unexpected_keys.update(unexpected)
+        del state_dict
+        gc.collect()
+
+    missing_keys = sorted(model_keys - loaded_keys)
+    print(f"Missing keys: {missing_keys}")
+    print(f"Unexpected keys: {sorted(unexpected_keys)}")
+    return True
 
 
 def _noise_with_sigma(
@@ -114,14 +166,7 @@ class WanARGenerator:
             use_dual_branch=False,
         )
 
-        if os.path.isdir(checkpoint_dir):
-            safetensors_path = os.path.join(checkpoint_dir, "model.safetensors")
-            if os.path.exists(safetensors_path):
-                print(f"Loading WanARModel weights from {safetensors_path}")
-                state_dict = load_file(safetensors_path)
-                missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
-                print(f"Missing keys: {missing}")
-                print(f"Unexpected keys: {unexpected}")
+        _load_safetensors_checkpoint(self.model, checkpoint_dir, "WanARModel")
 
         self.model.eval().requires_grad_(False)
         if not self.init_on_cpu:
@@ -327,15 +372,13 @@ class WEMGenerator:
         print(f"Creating WEMModel from {checkpoint_dir}")
         self.model = WEMModel(config)
 
-        if os.path.isdir(checkpoint_dir):
-            safetensors_path = os.path.join(checkpoint_dir, "model.safetensors")
-            if os.path.exists(safetensors_path):
-                print(f"Loading WEMModel weights from {safetensors_path}")
-                wem_state_dict = _remap_legacy_branch_keys(load_file(safetensors_path))
-                missing, unexpected = self.model.load_state_dict(wem_state_dict, strict=False)
-                print(f"Missing keys: {missing}")
-                print(f"Unexpected keys: {unexpected}")
-                self.model.eval().requires_grad_(False)
+        if _load_safetensors_checkpoint(
+            self.model,
+            checkpoint_dir,
+            "WEMModel",
+            remap_fn=_remap_legacy_branch_keys,
+        ):
+            self.model.eval().requires_grad_(False)
 
         if not self.init_on_cpu:
             self.model.to(self.device)

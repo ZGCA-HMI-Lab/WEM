@@ -198,14 +198,16 @@ First download the released WEM checkpoint from Hugging Face:
 
 ```bash
 huggingface-cli download Zoorao/WEM \
-    --local-dir <WEM_CHECKPOINT_DIR>
+    --local-dir <WEM_CHECKPOINT_ROOT>
 ```
+
+The released weights are sharded under `<WEM_CHECKPOINT_ROOT>/checkpoint`. EMA weights are available under `<WEM_CHECKPOINT_ROOT>/checkpoint_ema`.
 
 Generate a single video from a first frame and a sequence of instructions:
 
 ```bash
 python generate.py \
-    --ckpt_dir <WEM_CHECKPOINT_DIR> \
+    --ckpt_dir <WEM_CHECKPOINT_ROOT>/checkpoint \
     --wan_ckpt_dir <WAN2.2_CHECKPOINT_DIR> \
     --qwen_ckpt_dir <QWEN3_VL_CHECKPOINT_DIR> \
     --image <FIRST_FRAME_IMAGE> \
@@ -243,7 +245,7 @@ Generate benchmark predictions:
 
 ```bash
 python generate.py \
-    --ckpt_dir <WEM_CHECKPOINT_DIR> \
+    --ckpt_dir <WEM_CHECKPOINT_ROOT>/checkpoint \
     --wan_ckpt_dir <WAN2.2_CHECKPOINT_DIR> \
     --qwen_ckpt_dir <QWEN3_VL_CHECKPOINT_DIR> \
     --benchmark_root <HTEWORLD_ROOT>/eval \
