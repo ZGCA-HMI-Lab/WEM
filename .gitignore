@@ -48,3 +48,5 @@ Thumbs.db
 *.log
 *.out
 *.err
+
+hf_upload_wem/
