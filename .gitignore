@@ -7,7 +7,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Local data, checkpoints, and training outputs
-data/
+# data/
 outputs/
 results/
 checkpoints/

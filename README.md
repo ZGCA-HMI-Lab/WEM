@@ -1,6 +1,6 @@
 # World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks
 
-**Zuyao Lin**<sup>1,2,3</sup>, **Jianhui Zhang**<sup>3,4</sup>, **Peidong Jia**<sup>5</sup>, **Xiaoguang Zhao**<sup>1</sup>, **Shanghang Zhang**<sup>5</sup>, **Xingyu Chen**<sup>3,✉</sup>
+**Zuyao Lin**<sup>1,2,3</sup>, **Jianhui Zhang**<sup>3,4</sup>, **Peidong Jia**<sup>5</sup>, **Xiaoguang Zhao**<sup>1</sup>, **Shanghang Zhang**<sup>5</sup>, **Jingdong Wang**<sup>3</sup>, **Xingyu Chen**<sup>3,✉</sup>
 
 <sup>1</sup>Institute of Automation, Chinese Academy of Sciences  
 <sup>2</sup>University of Chinese Academy of Sciences  
@@ -23,7 +23,16 @@
 
 ## Abstract
 
-World models are widely explored in embodied intelligence, yet they typically predict world and ego evolution within a single stream, entangling persistent instruction-agnostic scene regularities with robot-centric instruction-conditioned dynamics. This entanglement degrades performance in long-horizon scenarios, particularly in hybrid tasks with interleaved navigation and manipulation. We introduce **World-Ego Modeling**, a paradigm that decomposes future evolution into separate world and ego components, defined from motion-, semantic-, and intention-based perspectives. We instantiate this as the **World-Ego Model (WEM)**, coupling an implicit world-ego planner with a cascade-parallel mixture-of-experts (CP-MoE) diffusion generator. To enable rigorous evaluation, we construct **HTEWorld**, the first benchmark for long-horizon world modeling with hybrid tasks, providing about 125K video clips (4.5M+ frames) with fine-grained action annotations and 300 multi-turn trajectories (2K+ instructions). WEM achieves state-of-the-art performance on HTEWorld while remaining competitive on existing manipulation-only benchmarks.
+Embodied video world models typically capture both scene evolution and the robot's behavior, which we refer to as the \emph{world} and the \emph{ego}, respectively.
+The world and the ego exhibit different underlying dynamics: world prediction relies primarily on visual history and emphasizes scene stability, whereas ego prediction relies more strongly on the current instruction and emphasizes accurate instruction following.
+Modeling both components within a single generation stream can entangle these different dependencies, making it difficult to specialize the prediction of either component.
+Consequently, it becomes difficult to simultaneously maintain scene consistency and accurate instruction following, particularly in long-horizon navigation-manipulation tasks.
+In this paper, we propose to decompose an embodied video into the world and the ego and disentangle their generation processes.
+Specifically, we define the world as the background and currently unmanipulated objects, and the ego as the robot and currently manipulated objects.
+Based on this definition, we develop the World-Ego Model (WEM), which combines a vision-language state predictor using role-conditioned attention (RCA) and asymmetric query budgets with 
+a semantic-routed mixture-of-experts (SR-MoE) diffusion generator.
+To enable rigorous evaluation, we further construct HTEWorld, a dataset and benchmark for long-horizon embodied video generation with hybrid navigation-manipulation tasks, providing 125K training video clips comprising over 4.5M frames with fine-grained instructions, together with 300 multi-turn evaluation trajectories covering over 2K instructions.
+Extensive experiments show that WEM achieves state-of-the-art performance on HTEWorld while remaining competitive on existing manipulation-oriented evaluations.
 
 ---
 
