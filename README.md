@@ -23,7 +23,7 @@
 
 ## Abstract
 
-Embodied video world models typically capture both scene evolution and the robot's behavior, which we refer to as the \emph{world} and the \emph{ego}, respectively.
+Embodied video world models typically capture both scene evolution and the robot's behavior, which we refer to as the world and the ego, respectively.
 The world and the ego exhibit different underlying dynamics: world prediction relies primarily on visual history and emphasizes scene stability, whereas ego prediction relies more strongly on the current instruction and emphasizes accurate instruction following.
 Modeling both components within a single generation stream can entangle these different dependencies, making it difficult to specialize the prediction of either component.
 Consequently, it becomes difficult to simultaneously maintain scene consistency and accurate instruction following, particularly in long-horizon navigation-manipulation tasks.
