@@ -307,8 +307,8 @@ We thank the authors of [Wan2.2](https://github.com/Wan-Video/Wan2.2) for the vi
 
 ```bibtex
 @article{wem2026,
-  title={World-Ego Modeling for Long-Horizon Evolution in Hybrid Embodied Tasks},
-  author={Lin, Zuyao and Zhang, Jianhui and Jia, Peidong and Zhao, Xiaoguang and Zhang, Shanghang and Chen, Xingyu},
+  title={World-Ego Modeling for Embodied Video Generation in Long-Horizon Navigation-Manipulation Tasks},
+  author={Lin, Zuyao and Zhang, Jianhui and Jia, Peidong and Zhao, Xiaoguang and Zhang, Shanghang and Wang, Jingdong and Chen, Xingyu},
   journal={arXiv preprint arXiv:2605.19957},
   year={2026}
 }
